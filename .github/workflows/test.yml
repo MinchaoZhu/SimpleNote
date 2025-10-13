@@ -1,0 +1,44 @@
+name: CI
+
+permissions:
+  contents: read
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  FOUNDRY_PROFILE: ci
+
+jobs:
+  check:
+    name: SimpleNote Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Show Forge version
+        run: forge --version
+
+      - name: Run Forge fmt
+        run: forge fmt --check
+
+      - name: Run Forge build
+        run: forge build --sizes
+
+      - name: Run Unit tests
+        run: forge test --no-match-test "testFuzz|testInvariant" -vvv
+
+      - name: Run Fuzz tests
+        run: forge test --match-test "testFuzz" -vvv
+
+      - name: Run Invariant tests (if any)
+        run: forge test --match-test "testInvariant" -vvv
+        continue-on-error: true
