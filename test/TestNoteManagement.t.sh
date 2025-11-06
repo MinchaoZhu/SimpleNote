@@ -107,8 +107,8 @@ start_anvil() {
 deploy_contract() {
     print_header "Contract Deployment"
 
-    if [ ! -f "../src/NoteManagement.sol" ]; then
-        record_failure "Contract file ../src/NoteManagement.sol not found"
+    if [ ! -f "src/NoteManagement.sol" ]; then
+        record_failure "Contract file src/NoteManagement.sol not found"
         return 1
     fi
 
@@ -132,8 +132,8 @@ deploy_contract() {
 deploy_uups_proxy() {
     print_header "UUPS Proxy Deployment"
 
-    if [ ! -f "../src/NoteManagement.sol" ]; then
-        record_failure "Contract file ../src/NoteManagement.sol not found"
+    if [ ! -f "src/NoteManagement.sol" ]; then
+        record_failure "Contract file src/NoteManagement.sol not found"
         return 1
     fi
 
