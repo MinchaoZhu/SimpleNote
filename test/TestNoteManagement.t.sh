@@ -141,7 +141,7 @@ deploy_uups_proxy() {
     
     # Use the DeployUUPS script to deploy proxy and implementation
     local deploy_output
-    deploy_output=$(cd .. && PRIVATE_KEY=$PRIVATE_KEY forge script script/DeployUUPS.s.sol:DeployUUPS --rpc-url $RPC_URL --broadcast 2>&1)
+    deploy_output=$(PRIVATE_KEY=$PRIVATE_KEY forge script script/DeployUUPS.s.sol:DeployUUPS --rpc-url $RPC_URL --broadcast 2>&1)
     
     if [ $? -ne 0 ]; then
         record_failure "UUPS deployment failed"
@@ -176,8 +176,8 @@ call_contract() {
 upgrade_contract() {
     print_header "Contract Upgrade Testing"
     
-    if [ ! -f "../test/base.t.sol" ]; then
-        record_failure "V2 contract file ../test/base.t.sol not found"
+    if [ ! -f "test/base.t.sol" ]; then
+        record_failure "V2 contract file test/base.t.sol not found"
         return 1
     fi
     
