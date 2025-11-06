@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>区块链笔记管理系统</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 头部 -->
+        <header class="header">
+            <div class="header-content">
+                <h1>📝 区块链笔记管理</h1>
+                <div class="wallet-section">
+                    <button id="connectWallet" class="btn btn-primary">连接钱包</button>
+                    <div id="walletInfo" class="wallet-info hidden">
+                        <span id="walletAddress"></span>
+                        <span id="noteCount" class="note-count"></span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主内容区域 -->
+        <main class="main-content">
+            <!-- 未连接钱包提示 -->
+            <div id="connectPrompt" class="connect-prompt">
+                <div class="prompt-content">
+                    <h2>👋 欢迎使用区块链笔记系统</h2>
+                    <p>请先连接您的 MetaMask 钱包以开始使用</p>
+                    <button onclick="connectWallet()" class="btn btn-large btn-primary">连接 MetaMask</button>
+                </div>
+            </div>
+
+            <!-- 笔记管理界面 -->
+            <div id="notesApp" class="notes-app hidden">
+                <!-- 操作按钮区 -->
+                <div class="action-bar">
+                    <button id="createNoteBtn" class="btn btn-success">
+                        <span>➕</span> 新建笔记
+                    </button>
+                    <button id="refreshBtn" class="btn btn-secondary">
+                        <span>🔄</span> 刷新
+                    </button>
+                </div>
+
+                <!-- 笔记列表 -->
+                <div id="notesContainer" class="notes-container">
+                    <div id="loadingSpinner" class="loading hidden">
+                        <div class="spinner"></div>
+                        <p>加载中...</p>
+                    </div>
+                    <div id="notesList" class="notes-list"></div>
+                    <div id="emptyState" class="empty-state hidden">
+                        <p>📭 还没有笔记，点击"新建笔记"开始吧！</p>
+                    </div>
+                </div>
+
+                <!-- 分页控制 -->
+                <div id="paginationControls" class="pagination hidden">
+                    <button id="prevPage" class="btn btn-secondary">上一页</button>
+                    <span id="pageInfo" class="page-info"></span>
+                    <button id="nextPage" class="btn btn-secondary">下一页</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 新建/编辑笔记模态框 -->
+    <div id="noteModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">新建笔记</h2>
+                <button class="close-btn" onclick="closeNoteModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="noteForm">
+                    <input type="hidden" id="noteId" value="">
+                    <div class="form-group">
+                        <label for="noteTitle">标题 *</label>
+                        <input 
+                            type="text" 
+                            id="noteTitle" 
+                            class="form-control" 
+                            placeholder="请输入标题（1-256字符）"
+                            maxlength="256"
+                            required
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label for="noteContent">内容</label>
+                        <textarea 
+                            id="noteContent" 
+                            class="form-control" 
+                            rows="10"
+                            placeholder="请输入内容（最多20480字符）"
+                            maxlength="20480"
+                        ></textarea>
+                        <small class="char-count">
+                            <span id="contentLength">0</span> / 20480
+                        </small>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeNoteModal()">取消</button>
+                        <button type="submit" class="btn btn-primary" id="saveNoteBtn">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 查看笔记详情模态框 -->
+    <div id="viewModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="viewTitle"></h2>
+                <button class="close-btn" onclick="closeViewModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="note-meta">
+                    <span id="viewTimestamp"></span>
+                    <span id="viewId"></span>
+                </div>
+                <div class="note-content-view" id="viewContent"></div>
+                <div class="modal-actions">
+                    <button class="btn btn-primary" onclick="editNoteFromView()">编辑</button>
+                    <button class="btn btn-danger" onclick="deleteNoteFromView()">删除</button>
+                    <button class="btn btn-secondary" onclick="closeViewModal()">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 通知 -->
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- 引入 ethers.js -->
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
+    <!-- 引入主脚本 -->
+    <script src="app.js"></script>
+</body>
+</html>

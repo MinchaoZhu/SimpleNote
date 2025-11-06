@@ -13,7 +13,7 @@ env:
 
 jobs:
   check:
-    name: SimpleNote Local Test Net
+    name: SimpleNote Integration Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -34,4 +34,4 @@ jobs:
         run: forge build --sizes
 
       - name: Run Bash tests
-        run: /bin/bash ./script/TestNoteManagement.s.sh --ci
+        run: /bin/bash ./test/TestNoteManagement.t.sh basic && /bin/bash ./test/TestNoteManagement.t.sh uups && /bin/bash ./test/TestNoteManagement.t.sh upgrade

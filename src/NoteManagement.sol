@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+
 /**
  * @title NoteManagement
  * @dev A decentralized note management system that allows users to create, update, and delete notes with custom properties.
  * Features include user isolation, property management, pagination, and gas-optimized operations.
+ * This contract is UUPS upgradeable.
  */
-contract NoteManagement {
+contract NoteManagement is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     /**
      * @dev Structure representing a note record with all its metadata
      */
@@ -66,34 +71,50 @@ contract NoteManagement {
     /// @dev Counter for generating unique note IDs
     uint256 private nextNoteId;
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     /**
-     * @dev Modifier to ensure a note exists and is not deleted
-     * @param _id The ID of the note to validate
+     * @dev Initializes the contract with the deployer as the initial owner
      */
+    function initialize() public initializer {
+        __Ownable_init(msg.sender);
+    }
+
+    /**
+     * @dev Authorizes the upgrade of the contract
+     * @param newImplementation The address of the new implementation contract
+     */
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+
     modifier noteShouldBeValid(uint256 _id) {
+        _noteShouldBeValid(_id);
+        _;
+    }
+
+    function _noteShouldBeValid(uint256 _id) internal view {
         require(_id < notes.length, "Note does not exist");
         require(notes[_id].isValid == true, "Note is deleted");
-        _;
     }
 
-    /**
-     * @dev Modifier to ensure the caller is the owner of the note
-     * @param _id The ID of the note to check ownership for
-     */
     modifier noteOwnerRequired(uint256 _id) {
-        require(notes[_id].owner == msg.sender, "Not the note owner");
+        _noteOwnerRequired(_id);
         _;
     }
 
-    /**
-     * @dev Modifier to validate string length constraints
-     * @param _str The string to validate
-     * @param _min Minimum allowed length
-     * @param _max Maximum allowed length
-     */
+    function _noteOwnerRequired(uint256 _id) internal view {
+        require(notes[_id].owner == msg.sender, "Not the note owner");
+    }
+
     modifier validString(string memory _str, uint256 _min, uint256 _max) {
-        require(bytes(_str).length >= _min && bytes(_str).length <= _max, "Invalid string length");
+        _validString(_str, _min, _max);
         _;
+    }
+
+    function _validString(string memory _str, uint256 _min, uint256 _max) internal pure {
+        require(bytes(_str).length >= _min && bytes(_str).length <= _max, "Invalid string length");
     }
 
     /// @dev Emitted when a new note is created
@@ -210,7 +231,7 @@ contract NoteManagement {
      * @dev Deletes a note and all its associated data, with complete storage cleanup for gas refunds
      * @param _id The ID of the note to delete
      */
-    function deleteNote(uint256 _id) public noteShouldBeValid(_id) noteOwnerRequired(_id) {
+    function deleteNote(uint256 _id) public virtual noteShouldBeValid(_id) noteOwnerRequired(_id) {
         // Clean up all property data to get gas refunds
         string[] memory keys = notes[_id].propertyKeys;
         for (uint256 i = 0; i < keys.length; i++) {
@@ -332,198 +353,11 @@ contract NoteManagement {
         return userNoteIds[msg.sender].length;
     }
 
-    function filterNotesByPropertyWithPage(string memory _key, string memory _value, uint256 offset, uint256 limit)
-        public
-        view
-        returns (NoteRecord[] memory filteredNotes, uint256 nextOffset, bool hasMore)
-    {
-        require(limit >= NOTE_PAGE_SIZE_MIN && limit <= NOTE_PAGE_SIZE_MAX, "Invalid limit");
-
-        uint256[] memory noteIds = userNoteIds[msg.sender];
-        uint256[] memory matchingIds = new uint256[](noteIds.length);
-        uint256 matchCount = 0;
-
-        bool checkKey = bytes(_key).length > 0;
-        bool checkValue = bytes(_value).length > 0;
-
-        // First pass: find all matching notes
-        for (uint256 i = 0; i < noteIds.length; i++) {
-            uint256 noteId = noteIds[i];
-
-            if (_matchesFilter(noteId, _key, _value, checkKey, checkValue)) {
-                matchingIds[matchCount] = noteId;
-                matchCount++;
-            }
-        }
-
-        // Handle pagination
-        if (offset >= matchCount) {
-            return (new NoteRecord[](0), offset > matchCount ? offset : matchCount, false);
-        }
-
-        uint256 endIndex = offset + limit;
-        if (endIndex > matchCount) {
-            endIndex = matchCount;
-        }
-
-        uint256 resultLength = endIndex - offset;
-        filteredNotes = new NoteRecord[](resultLength);
-
-        for (uint256 i = 0; i < resultLength; i++) {
-            filteredNotes[i] = notes[matchingIds[offset + i]];
-        }
-
-        return (filteredNotes, endIndex, endIndex < matchCount);
-    }
-
     /**
-     * @dev Internal function to check if a note matches the filter criteria
-     * @param noteId The ID of the note to check
-     * @param _key The key to filter by
-     * @param _value The value to filter by
-     * @param checkKey Whether to check the key
-     * @param checkValue Whether to check the value
-     * @return Whether the note matches the filter
+     * @dev Returns the version of this implementation
+     * @return The version number
      */
-    function _matchesFilter(uint256 noteId, string memory _key, string memory _value, bool checkKey, bool checkValue)
-        private
-        view
-        returns (bool)
-    {
-        if (checkKey) {
-            // Check if note has the specified key
-            if (!notePropertyExists[noteId][_key]) {
-                return false;
-            }
-            if (checkValue) {
-                // Check if the value matches
-                return keccak256(bytes(noteProperties[noteId][_key])) == keccak256(bytes(_value));
-            }
-            return true;
-        } else if (checkValue) {
-            // Only checking value, search through all properties
-            string[] memory keys = notes[noteId].propertyKeys;
-            for (uint256 j = 0; j < keys.length; j++) {
-                if (keccak256(bytes(noteProperties[noteId][keys[j]])) == keccak256(bytes(_value))) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        // Neither key nor value specified, match all notes
-        return true;
-    }
-
-    /**
-     * @dev Returns all unique (key, value) pairs sorted by count (descending)
-     * @param maxResults Maximum number of results to return (0 means return all)
-     * @return keys Array of property keys
-     * @return values Array of property values
-     * @return counts Array of occurrence counts (sorted descending)
-     */
-    function getTopPropertyStatistics(uint256 maxResults)
-        public
-        view
-        returns (string[] memory keys, string[] memory values, uint256[] memory counts)
-    {
-        uint256[] memory noteIds = userNoteIds[msg.sender];
-
-        // Handle empty case
-        if (noteIds.length == 0) {
-            return (new string[](0), new string[](0), new uint256[](0));
-        }
-
-        // Collect statistics first
-        string[] memory tempKeys = new string[](noteIds.length * MAX_PROPERTIES_PER_NOTE);
-        string[] memory tempValues = new string[](noteIds.length * MAX_PROPERTIES_PER_NOTE);
-        uint256[] memory tempCounts = new uint256[](noteIds.length * MAX_PROPERTIES_PER_NOTE);
-        uint256 uniquePairs = 0;
-
-        // Collect all key-value pairs
-        for (uint256 i = 0; i < noteIds.length; i++) {
-            uint256 noteId = noteIds[i];
-            string[] memory noteKeys = notes[noteId].propertyKeys;
-
-            for (uint256 j = 0; j < noteKeys.length; j++) {
-                string memory key = noteKeys[j];
-                string memory value = noteProperties[noteId][key];
-
-                // Check if this key-value pair already exists
-                bool found = false;
-                for (uint256 k = 0; k < uniquePairs; k++) {
-                    if (
-                        keccak256(bytes(tempKeys[k])) == keccak256(bytes(key))
-                            && keccak256(bytes(tempValues[k])) == keccak256(bytes(value))
-                    ) {
-                        tempCounts[k]++;
-                        found = true;
-                        break;
-                    }
-                }
-
-                if (!found) {
-                    tempKeys[uniquePairs] = key;
-                    tempValues[uniquePairs] = value;
-                    tempCounts[uniquePairs] = 1;
-                    uniquePairs++;
-                }
-            }
-        }
-
-        // Handle case where no properties exist
-        if (uniquePairs == 0) {
-            return (new string[](0), new string[](0), new uint256[](0));
-        }
-
-        // Simple bubble sort by count (descending) - Fixed underflow issue
-        if (uniquePairs > 1) {
-            for (uint256 i = 0; i < uniquePairs - 1; i++) {
-                for (uint256 j = 0; j < uniquePairs - i - 1; j++) {
-                    if (tempCounts[j] < tempCounts[j + 1]) {
-                        // Swap counts
-                        uint256 tempCount = tempCounts[j];
-                        tempCounts[j] = tempCounts[j + 1];
-                        tempCounts[j + 1] = tempCount;
-
-                        // Swap keys
-                        string memory tempKey = tempKeys[j];
-                        tempKeys[j] = tempKeys[j + 1];
-                        tempKeys[j + 1] = tempKey;
-
-                        // Swap values
-                        string memory tempValue = tempValues[j];
-                        tempValues[j] = tempValues[j + 1];
-                        tempValues[j + 1] = tempValue;
-                    }
-                }
-            }
-        }
-
-        // Determine result size
-        uint256 resultSize = uniquePairs;
-        if (maxResults > 0 && maxResults < uniquePairs) {
-            resultSize = maxResults;
-        }
-
-        // Create result arrays
-        keys = new string[](resultSize);
-        values = new string[](resultSize);
-        counts = new uint256[](resultSize);
-
-        for (uint256 i = 0; i < resultSize; i++) {
-            keys[i] = tempKeys[i];
-            values[i] = tempValues[i];
-            counts[i] = tempCounts[i];
-        }
-    }
-
-    /**
-     * @dev Returns the total number of unique property pairs for the user
-     * @return The count of unique (key, value) pairs
-     */
-    function getPropertyPairsCount() public view returns (uint256) {
-        (string[] memory keys,,) = getTopPropertyStatistics(0);
-        return keys.length;
+    function getVersion() public pure virtual returns (uint256) {
+        return 1;
     }
 }
