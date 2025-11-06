@@ -13,7 +13,7 @@ env:
 
 jobs:
   check:
-    name: SimpleNote Local Test Net
+    name: SimpleNote Integration Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
