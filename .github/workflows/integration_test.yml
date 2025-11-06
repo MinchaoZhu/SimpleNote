@@ -34,4 +34,4 @@ jobs:
         run: forge build --sizes
 
       - name: Run Bash tests
-        run: /bin/bash ./test/TestNoteManagement.t.sh --basic && /bin/bash ./test/TestNoteManagement.t.sh --uups && /bin/bash ./test/TestNoteManagement.t.sh --upgrade
+        run: /bin/bash ./test/TestNoteManagement.t.sh basic && /bin/bash ./test/TestNoteManagement.t.sh uups && /bin/bash ./test/TestNoteManagement.t.sh upgrade
