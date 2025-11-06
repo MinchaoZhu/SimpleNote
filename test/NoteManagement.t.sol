@@ -955,8 +955,7 @@ contract RandomArray {
         // Fisher-Yates shuffle
         for (uint256 i = 0; i < count; i++) {
             // Generate random index j ∈ [i, count)
-            uint256 j =
-                i
+            uint256 j = i
                 + (uint256(
                         keccak256(
                             abi.encodePacked(
